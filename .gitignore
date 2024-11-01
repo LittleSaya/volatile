@@ -1,0 +1,9 @@
+/temp/**/*
+!/temp/.gitkeep
+/logs/**/*
+!/logs/.gitkeep
+
+/*/wasm_*.wasm
+/*/wasm_*.wasm.d.ts
+/*/wasm_*.d.ts
+/*/wasm_*.js

@@ -1,0 +1,274 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+
+        <title>Volatile</title>
+
+        <script src="/ponyfill.min.js"></script>
+        <script src="/StreamSaver.min.js"></script>
+
+        <script>
+            // Business logic/业务逻辑
+
+            const streamSaver = window.streamSaver;
+            streamSaver.mitm = 'https://volatile.saya.pw/mitm.html';
+
+            function run() {
+                /** @type {HTMLInputElement} */ let el_mode = document.querySelector('input[type=radio][name=mode]:checked');
+                if (!el_mode) {
+                    error('Please select mode/请选择模式');
+                    return;
+                }
+                let mode = el_mode.value;
+                info('mode/模式 = ' + mode);
+
+                /** @type {HTMLInputElement} */ let el_file = document.querySelector('#input_file');
+                if (!el_file) {
+                    error('Missing file input element/缺少文件输入元素');
+                    return;
+                }
+                let files = el_file.files;
+                if (!files || !files.length) {
+                    error('Please select file/请选择文件');
+                    return;
+                }
+                if (files.length > 1) {
+                    warn('Multiple files detected, only the first one will be processed/发现多个文件，只有第一个文件会被处理');
+                }
+                let file = files.item(0);
+
+                if (mode === 'compress_encrypt') {
+                    compress_encrypt(file);
+                }
+                else if (mode === 'decrypt') {
+                    decrypt(file);
+                }
+                else {
+                    error('Unknown mode: ' + mode + '/未知模式：' + mode);
+                }
+            }
+
+            // Bit reverse/位反转
+            function encrypt_transform(/** @type {Uint8Array} */ array) {
+                let temp = [ 0 ];
+                array.forEach((byte, index) => {
+                    temp[0] = (byte ^ 0xFF) & 0xFF;
+                    array.set(temp, index);
+                });
+            }
+
+            const decrypt_transform = encrypt_transform;
+
+            function compress_encrypt(/** @type {File} */ file) {
+                let input_stream = file.stream();
+                let reader = input_stream.getReader();
+                
+                /** @type {WritableStream<Uint8Array>} */ const output_stream = streamSaver.createWriteStream('enc_' + file.name, {
+                    size: file.size,
+                    writableStrategy: undefined,
+                    readableStrategy: undefined
+                });
+                const writer = output_stream.getWriter();
+
+                let pipe_context = new PipeContext(
+                    reader,
+                    writer,
+                    encrypt_transform,
+                    () => {
+                        info('done/完成');
+                    },
+                    (err) => {
+                        error(JSON.stringify(err));
+                    }
+                );
+                pipe_context.pipe();
+            }
+
+            function decrypt(/** @type {File} */ file) {
+                let input_stream = file.stream();
+                let reader = input_stream.getReader();
+                
+                /** @type {WritableStream<Uint8Array>} */ const output_stream = streamSaver.createWriteStream('dec_' + file.name, {
+                    size: file.size,
+                    writableStrategy: undefined,
+                    readableStrategy: undefined
+                });
+                const writer = output_stream.getWriter();
+
+                let pipe_context = new PipeContext(
+                    reader,
+                    writer,
+                    decrypt_transform,
+                    () => {
+                        info('done/完成');
+                    },
+                    (err) => {
+                        error(JSON.stringify(err));
+                    }
+                );
+                pipe_context.pipe();
+            }
+        </script>
+
+        <script>
+            // Utilities/辅助工具
+            
+            function PipeContext(
+                /** @type {ReadableStreamDefaultReader<Uint8Array>} */ reader,
+                /** @type {WritableStreamDefaultWriter<Uint8Array>} */ writer,
+                /** @type {Function} */ transform_function,
+                /** @type {Function} */ done_callback,
+                /** @type {Function} */ error_callback
+            ) {
+                this.reader = reader;
+                this.writer = writer;
+                this.transform_function = transform_function;
+                this.done_callback = done_callback;
+                this.error_callback = error_callback;
+
+                this.pipe = function() {
+                    this.reader.read()
+                    .then(({ done, value }) => {
+                        if (done) {
+                            this.writer.close();
+                            this.done_callback();
+                        }
+                        else {
+                            this.transform_function(value);
+                            this.writer.write(value)
+                            .then(() => {
+                                this.pipe();
+                            })
+                            .catch(err => {
+                                this.error_callback(err);
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        this.error_callback(err);
+                    });
+                }
+            }
+
+            function info(msg) {
+                push_log(msg, 'info');
+            }
+
+            function success(msg) {
+                push_log(msg, 'success');
+            }
+
+            function warn(msg) {
+                push_log(msg, 'warn');
+            }
+
+            function error(msg) {
+                push_log(msg, 'error');
+            }
+
+            function push_log(msg, level) {
+                let el_log = document.createElement('div');
+                el_log.innerText = get_timestamp() + ': ' + msg;
+                if (level === 'success') {
+                    el_log.style.color = 'rgb(0, 255, 0)';
+                }
+                else if (level === 'warn') {
+                    el_log.style.color = 'rgb(255, 0, 0)';
+                }
+                else if (level === 'error') {
+                    el_log.style.color = 'rgb(255, 0, 0)';
+                }
+                let el_logs = document.querySelector('#logs');
+                if (!el_logs) {
+                    alert('Missing "logs" element/缺少"log"元素');
+                    return;
+                }
+                el_logs.append(el_log);
+            }
+
+            function get_timestamp() {
+                let d = new Date();
+                let year = pad4(d.getFullYear());
+                let month = pad2(d.getMonth());
+                let date = pad2(d.getDate());
+                let hour = pad2(d.getHours());
+                let minute = pad2(d.getMinutes());
+                let second = pad2(d.getSeconds());
+                let millisecond = pad3(d.getMilliseconds());
+                return year + '-' + month + '-' + date + ' ' + hour + ':' + minute + ':' + second + '.' + millisecond;
+            }
+
+            function pad2(s) {
+                let ss = String(s);
+                if (ss.length === 0) {
+                    return '00';
+                }
+                else if (ss.length === 1) {
+                    return '0' + ss;
+                }
+                else {
+                    return ss;
+                }
+            }
+
+            function pad3(s) {
+                let ss = String(s);
+                if (ss.length === 0) {
+                    return '000';
+                }
+                else if (ss.length === 1) {
+                    return '00' + ss;
+                }
+                else if (ss.length === 2) {
+                    return '0' + ss;
+                }
+                else {
+                    return ss;
+                }
+            }
+
+            function pad4(s) {
+                let ss = String(s);
+                if (ss.length === 0) {
+                    return '0000';
+                }
+                else if (ss.length === 1) {
+                    return '000' + ss;
+                }
+                else if (ss.length === 2) {
+                    return '00' + ss;
+                }
+                else if (ss.length === 3) {
+                    return '0' + ss;
+                }
+                else {
+                    return ss;
+                }
+            }
+        </script>
+    </head>
+
+    <body>
+        <fieldset style="margin-bottom: 1em;">
+            <legend>Volatile v0.0.1 - Mode/模式</legend>
+            <div>
+                <input type="radio" name="mode" value="compress_encrypt" />
+                <label>Compress & Encrypt/压缩并加密</label>
+            </div>
+            <div>
+                <input type="radio" name="mode" value="decrypt" checked />
+                <label>Decrypt/解密</label>
+            </div>
+        </fieldset>
+
+        <div style="margin-bottom: 1em;">
+            <label for="input_file">Select File:/选择文件：</label>
+            <input type="file" id="input_file" />
+            <button onclick="run()">Execute/执行</button>
+        </div>
+
+        <div id="logs" style="margin-bottom: 1em;">
+            <div>log:/日志：</div>
+        </div>
+    </body>
+</html>
