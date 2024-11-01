@@ -122,7 +122,8 @@ fn init_drag_and_drop(
                         else {
                             web_sys::window().unwrap()
                                 .alert_with_message(&format!(
-                                    "在遍历用户拖放的文件时，无法将路径为 {} 的 FileSystemEntry 转换为 FileSystemFileEntry ，程序无法继续执行，如果希望重试的话请刷新页面",
+                                    // "在遍历用户拖放的文件时，无法将路径为 {} 的 FileSystemEntry 转换为 FileSystemFileEntry ，程序无法继续执行，如果希望重试的话请刷新页面",
+                                    "when traversing files dropped by user, can not convert FileSystemEntry at {} to FileSystemFileEntry",
                                     full_path
                                 ))
                                 .unwrap();

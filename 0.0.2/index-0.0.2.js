@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       'compress_encrypt',
       'decrypt'
     );
-    alert(JSON.stringify(res));
+    // alert(JSON.stringify(res));
   }
   catch (err) {
     alert('WASM 运行时错误：' + JSON.stringify(err));
