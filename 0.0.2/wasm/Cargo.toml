@@ -28,8 +28,15 @@ features = [
     "FileSystemFileEntry",
     "FileSystemDirectoryEntry",
     "DomException",
-    "ReadableStreamByobReader",
-    "WritableStreamDefaultWriter"
+    "FileSystemDirectoryReader",
+    "FileSystem",
+    "PointerEvent",
+    "WritableStreamDefaultWriter",
+    "FileSystemFlags",
+    "ReadableStream",
+    "ReadableStreamGetReaderOptions",
+    "ReadableStreamReaderMode",
+    "ReadableStreamByobReader"
 ]
 
 [dependencies]

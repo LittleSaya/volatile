@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 use crate::utils::Uint8ArrayWriter;
 
 /// # FileHeader
-/// 
+///
 /// This type contains necessary fields for both "local file header" and
 /// "central directory header" because they have many similar fields.
 #[wasm_bindgen]
@@ -47,7 +47,7 @@ impl FileHeader {
         let mut extra_field: [u8; 32] = [0; 32];
 
         // Note: all fields stored in Intel low-byte/high-byte order.
-        // 
+        //
         //         Value                    Size       Description
         //         -----                    ----       -----------
         // (ZIP64) 0x0001                   2 bytes    Tag for this "extra" block type
@@ -55,7 +55,7 @@ impl FileHeader {
         //         Original Size            8 bytes    Original uncompressed file size
         //         Compressed Size          8 bytes    Size of compressed data
         //         Relative Header Offset   8 bytes    Offset of local header record
-        //         Disk Start Number        4 bytes    Number of the disk on which this file starts 
+        //         Disk Start Number        4 bytes    Number of the disk on which this file starts
         extra_field[0..2].copy_from_slice(&0x0001_u16.to_le_bytes());
         extra_field[2..4].copy_from_slice(&28_u16.to_le_bytes());
         // I guess they are zero, because the reading of these sizes are moved
@@ -135,8 +135,7 @@ impl FileHeader {
         }
     }
 
-    /// No heap allocation allowed
-    pub fn write_into_as_lfh(self, buffer: &js_sys::Uint8Array) -> u32 {
+    pub fn write_into_as_lfh(&self, buffer: &js_sys::ArrayBuffer) -> js_sys::Uint8Array {
         let FileHeader {
             version_needed_to_extract,
             general_purpose_bit_flag,
@@ -165,9 +164,10 @@ impl FileHeader {
         let file_name_length = file_name_length.to_le_bytes();
         let extra_field_length = extra_field_length.to_le_bytes();
 
-        let mut writer = Uint8ArrayWriter::new(buffer);
-        let mut byte_count = 0;
+        let view = js_sys::Uint8Array::new(&buffer);
+        let mut writer = Uint8ArrayWriter::new(&view);
 
+        let mut byte_count = 0_u32;
         byte_count += writer.write_slice(&local_file_header_signature);
         byte_count += writer.write_slice(&version_needed_to_extract);
         byte_count += writer.write_slice(&general_purpose_bit_flag);
@@ -179,9 +179,9 @@ impl FileHeader {
         byte_count += writer.write_slice(&uncompressed_size);
         byte_count += writer.write_slice(&file_name_length);
         byte_count += writer.write_slice(&extra_field_length);
-        byte_count += writer.write_slice(&file_name);
-        byte_count += writer.write_slice(&extra_field);
+        byte_count += writer.write_slice(file_name);
+        byte_count += writer.write_slice(extra_field);
 
-        byte_count
+        view.subarray(0, byte_count)
     }
 }

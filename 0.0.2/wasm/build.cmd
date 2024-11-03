@@ -2,7 +2,13 @@
 
 cd %~dp0
 
-wasm-pack build --target web
+set PROFILE=--release
+
+if "%1" == "dev" (
+    set PROFILE=--dev
+)
+
+wasm-pack build %PROFILE% --target web
 
 copy /v /y pkg\wasm_0_0_2_bg.wasm /b ..\
 copy /v /y pkg\wasm_0_0_2_bg.wasm.d.ts /b ..\
