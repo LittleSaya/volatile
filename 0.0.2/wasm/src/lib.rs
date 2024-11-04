@@ -19,6 +19,8 @@ mod utils;
 mod appnote63;
 mod writer_chain;
 mod context;
+mod prelude;
+mod alert;
 
 const BUFFER_HEADER_SIZE: u32 = 64 * 1024; // 64 KiB
 const BUFFER_DATA_SIZE: u32 = 1024 * 1024; // 1 MiB
@@ -97,6 +99,8 @@ pub async fn main(
     compress_encrypt_element_id: String,
     decrypt_element_id: String,
 ) -> Result<JsValue, JsValue> {
+    context::Context::init();
+
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
 

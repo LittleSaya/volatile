@@ -27,8 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // await main();
-  await test_1();
+  await main();
 });
 
 async function main() {
@@ -59,15 +58,5 @@ async function main() {
     });
     const writer = output_stream.getWriter();
     return writer;
-  }
-}
-
-async function test_1() {
-  try {
-    console.log('test 1: create an arraybuffer in rust, and test when it will become invalid');
-    await wasm.test_1();
-  }
-  catch (err) {
-    alert('WASM 运行时错误：' + JSON.stringify(err));
   }
 }
