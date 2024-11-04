@@ -11,13 +11,14 @@
 
 use std::{cell::RefCell, io::Write, mem, rc::Rc};
 
-use web_sys::{self, js_sys::{self, ArrayBuffer}, wasm_bindgen, DomException, FileSystemFlags};
+use web_sys::{self, js_sys, wasm_bindgen, DomException, FileSystemFlags};
 use wasm_bindgen::prelude::*;
 use writer_chain::{CompressWriter, CrcWriter, GetLastBuffer, TransformWriter};
 
 mod utils;
 mod appnote63;
 mod writer_chain;
+mod context;
 
 const BUFFER_HEADER_SIZE: u32 = 64 * 1024; // 64 KiB
 const BUFFER_DATA_SIZE: u32 = 1024 * 1024; // 1 MiB
@@ -59,8 +60,8 @@ struct Context {
     number_compressed: u64,
     file_headers: Vec<appnote63::FileHeader>,
     bytes_written: u64,
-    buffer_header: ArrayBuffer,
-    buffer_data: ArrayBuffer,
+    buffer_header: js_sys::ArrayBuffer,
+    buffer_data: js_sys::ArrayBuffer,
     buffer_data_wasm: Vec<u8>,
 
     // below will be used when compressing & encrypting a single file
@@ -90,12 +91,12 @@ struct RustClosure {
 }
 
 #[wasm_bindgen]
-pub async fn init(
+pub async fn main(
     dropping_area_element_id: String,
     status_element_id: String,
     compress_encrypt_element_id: String,
     decrypt_element_id: String,
-) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
+) -> Result<JsValue, JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
 
@@ -523,7 +524,7 @@ pub async fn init(
 }
 
 /// Check the existence and type of a specific element.
-fn validate_element<T: wasm_bindgen::JsCast>(document: &web_sys::Document, element_id: &str) -> Result<T, ()> {
+fn validate_element<T: JsCast>(document: &web_sys::Document, element_id: &str) -> Result<T, ()> {
     use wasm_bindgen::JsCast;
 
     let Some(element) = document.get_element_by_id(&element_id) else { return Err(()); };

@@ -1,6 +1,6 @@
 // Business logic/业务逻辑
 
-import init, { init as init_business } from './wasm_0_0_2.js';
+import init, * as wasm from './wasm_0_0_2.js';
 
 const streamSaver = window.streamSaver;
 streamSaver.mitm = 'http://127.0.0.1:8080/mitm.html';
@@ -27,9 +27,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // await main();
+  await test_1();
+});
+
+async function main() {
   try {
     if (!wasm_business_initialized) {
-      await init_business(
+      await wasm.main(
         'dropping_area',
         'status',
         'compress_encrypt',
@@ -55,4 +60,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const writer = output_stream.getWriter();
     return writer;
   }
-});
+}
+
+async function test_1() {
+  try {
+    console.log('test 1: create an arraybuffer in rust, and test when it will become invalid');
+    await wasm.test_1();
+  }
+  catch (err) {
+    alert('WASM 运行时错误：' + JSON.stringify(err));
+  }
+}
