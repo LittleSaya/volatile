@@ -1,8 +1,6 @@
 use web_sys::{js_sys, wasm_bindgen};
 use wasm_bindgen::prelude::*;
 
-use crate::utils::Uint8ArrayWriter;
-
 /// # FileHeader
 ///
 /// This type contains necessary fields for both "local file header" and
@@ -164,24 +162,41 @@ impl FileHeader {
         let file_name_length = file_name_length.to_le_bytes();
         let extra_field_length = extra_field_length.to_le_bytes();
 
-        let view = js_sys::Uint8Array::new(&buffer);
-        let mut writer = Uint8ArrayWriter::new(&view);
+        let total_bytes =
+            local_file_header_signature.len() +
+            version_needed_to_extract.len() +
+            general_purpose_bit_flag.len() +
+            compression_method.len() +
+            last_mod_file_time.len() +
+            last_mod_file_date.len() +
+            crc_32.len() +
+            compressed_size.len() +
+            uncompressed_size.len() +
+            file_name_length.len() +
+            extra_field_length.len() +
+            file_name.len() +
+            extra_field.len();
 
-        let mut byte_count = 0_u32;
-        byte_count += writer.write_slice(&local_file_header_signature);
-        byte_count += writer.write_slice(&version_needed_to_extract);
-        byte_count += writer.write_slice(&general_purpose_bit_flag);
-        byte_count += writer.write_slice(&compression_method);
-        byte_count += writer.write_slice(&last_mod_file_time);
-        byte_count += writer.write_slice(&last_mod_file_date);
-        byte_count += writer.write_slice(&crc_32);
-        byte_count += writer.write_slice(&compressed_size);
-        byte_count += writer.write_slice(&uncompressed_size);
-        byte_count += writer.write_slice(&file_name_length);
-        byte_count += writer.write_slice(&extra_field_length);
-        byte_count += writer.write_slice(file_name);
-        byte_count += writer.write_slice(extra_field);
+        let mut source = Vec::with_capacity(total_bytes);
 
-        view.subarray(0, byte_count)
+        source.extend_from_slice(&local_file_header_signature);
+        source.extend_from_slice(&version_needed_to_extract);
+        source.extend_from_slice(&general_purpose_bit_flag);
+        source.extend_from_slice(&compression_method);
+        source.extend_from_slice(&last_mod_file_time);
+        source.extend_from_slice(&last_mod_file_date);
+        source.extend_from_slice(&crc_32);
+        source.extend_from_slice(&compressed_size);
+        source.extend_from_slice(&uncompressed_size);
+        source.extend_from_slice(&file_name_length);
+        source.extend_from_slice(&extra_field_length);
+        source.extend_from_slice(file_name);
+        source.extend_from_slice(extra_field);
+
+        let target = js_sys::Uint8Array::new_with_byte_offset_and_length(&buffer, 0, source.len() as u32);
+
+        target.copy_from(&source);
+
+        target
     }
 }
