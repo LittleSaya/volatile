@@ -21,16 +21,12 @@ pub struct FileHeader {
   compressed_size_u64                 : u64, // zip64
   uncompressed_size_u64               : u64, // zip64
   file_name_length                    : u16, // LFH & CDH
-  extra_field_length                  : u16, // LFH & CDH
-  file_comment_length                 : u16, // CDH only
   disk_number_start                   : u16, // CDH only
   internal_file_attributes            : u16, // CDH only
   external_file_attributes            : u32, // CDH only
   relative_offset_of_local_header     : u32, // CDH only
   lfh_pos                             : u64,
-  file_name: Vec<u8>,
-  extra_field: [u8; 32],
-  file_comment: [u8; 0],
+  file_name                           : Vec<u8>,
 }
 
 impl FileHeader {
@@ -39,31 +35,6 @@ impl FileHeader {
     // letter, or a leading slash. All slashes MUST be '/'.
     // Ref 4.4.17
     let file_name: Vec<u8> = file_name.into();
-
-    // Currently, this program will always use "Zip64 extended information extra field"
-    // , its size is 32 bytes.
-    let mut extra_field: [u8; 32] = [0; 32];
-
-    // Note: all fields stored in Intel low-byte/high-byte order.
-    //
-    //         Value                    Size       Description
-    //         -----                    ----       -----------
-    // (ZIP64) 0x0001                   2 bytes    Tag for this "extra" block type
-    //         Size                     2 bytes    Size of this "extra" block
-    //         Original Size            8 bytes    Original uncompressed file size
-    //         Compressed Size          8 bytes    Size of compressed data
-    //         Relative Header Offset   8 bytes    Offset of local header record
-    //         Disk Start Number        4 bytes    Number of the disk on which this file starts
-    extra_field[0..2].copy_from_slice(&0x0001_u16.to_le_bytes());
-    extra_field[2..4].copy_from_slice(&28_u16.to_le_bytes());
-    // I guess they are zero, because the reading of these sizes are moved
-    // from "local file header" to "extra field", so the zeros should move
-    // from "local file header" to "extra field" as well.
-    extra_field[4..12].copy_from_slice(&0_u64.to_le_bytes());
-    extra_field[12..20].copy_from_slice(&0_u64.to_le_bytes());
-    extra_field[20..28].copy_from_slice(&lfh_pos.to_le_bytes());
-    // Splitting is not support, so this is hard-coded to 0, currently.
-    extra_field[28..32].copy_from_slice(&0_u32.to_le_bytes());
 
     Self {
       // Appnote version 6.3 is referenced while writing these codes.
@@ -79,7 +50,7 @@ impl FileHeader {
       // Bit 3 is set because this will enable the "data descriptor".
       // Bit 11 is set because this indicates the file name and comment are utf-8 encoded.
       // Ref 4.4.4
-      general_purpose_bit_flag: 0b0001_0000_0001_0000_u16,
+      general_purpose_bit_flag: 0b0000_1000_0000_1000_u16,
 
       // Method 8 is Deflate.
       // Ref 4.4.5
@@ -111,12 +82,6 @@ impl FileHeader {
 
       file_name_length: file_name.len() as u16,
 
-      // This is fixed because the size of "Zip64 extended information extra field" is fixed.
-      extra_field_length: 32_u16,
-
-      // No file will have comment, currently.
-      file_comment_length: 0_u16,
-
       // "zip64", in extra data.
       disk_number_start: 0xFFFF_u16,
 
@@ -134,10 +99,6 @@ impl FileHeader {
       lfh_pos,
 
       file_name,
-
-      extra_field,
-
-      file_comment: [0; 0],
     }
   }
 
@@ -153,9 +114,7 @@ impl FileHeader {
       compressed_size,
       uncompressed_size,
       file_name_length,
-      extra_field_length,
       file_name,
-      extra_field,
       ..
     } = self;
 
@@ -169,7 +128,14 @@ impl FileHeader {
     let compressed_size = compressed_size.to_le_bytes();
     let uncompressed_size = uncompressed_size.to_le_bytes();
     let file_name_length = file_name_length.to_le_bytes();
-    let extra_field_length = extra_field_length.to_le_bytes();
+
+    // Currently, this program will always use "Zip64 extended information extra field", its size is 20 bytes in LFH
+    const EXTRA_FIELD_LENGTH: usize = 20;
+    let mut extra_field: [u8; EXTRA_FIELD_LENGTH] = [0; EXTRA_FIELD_LENGTH];
+    extra_field[0..2].copy_from_slice(&0x0001_u16.to_le_bytes()); // Tag for this "extra" block type
+    extra_field[2..4].copy_from_slice(&16_u16.to_le_bytes()); // Size of this "extra" block
+    extra_field[4..12].copy_from_slice(&0_u64.to_le_bytes()); // Original uncompressed file size
+    extra_field[12..20].copy_from_slice(&0_u64.to_le_bytes()); // Size of compressed data
 
     buffer.clear();
 
@@ -183,9 +149,9 @@ impl FileHeader {
     buffer.extend_from_slice(&compressed_size);
     buffer.extend_from_slice(&uncompressed_size);
     buffer.extend_from_slice(&file_name_length);
-    buffer.extend_from_slice(&extra_field_length);
+    buffer.extend_from_slice(&(EXTRA_FIELD_LENGTH as u16).to_le_bytes());
     buffer.extend_from_slice(file_name);
-    buffer.extend_from_slice(extra_field);
+    buffer.extend_from_slice(&extra_field);
 
     let view = js_sys::Uint8Array::new_with_byte_offset_and_length(array_buffer, 0, buffer.len() as u32);
     view.copy_from(buffer);
@@ -194,6 +160,16 @@ impl FileHeader {
   }
 
   pub fn write_into_as_cdh(&self, buffer: &mut Vec<u8>) {
+    // Currently, this program will always use "Zip64 extended information extra field", its size is 32 bytes in CDH
+    const EXTRA_FIELD_LENGTH: usize = 32;
+    let mut extra_field: [u8; EXTRA_FIELD_LENGTH] = [0; EXTRA_FIELD_LENGTH];
+    extra_field[0..2].copy_from_slice(&0x0001_u16.to_le_bytes()); // Tag for this "extra" block type
+    extra_field[2..4].copy_from_slice(&28_u16.to_le_bytes()); // Size of this "extra" block
+    extra_field[4..12].copy_from_slice(&self.uncompressed_size_u64.to_le_bytes()); // Original uncompressed file size
+    extra_field[12..20].copy_from_slice(&self.compressed_size_u64.to_le_bytes()); // Size of compressed data
+    extra_field[20..28].copy_from_slice(&self.lfh_pos.to_le_bytes()); // Offset of local header record
+    extra_field[28..32].copy_from_slice(&0_u32.to_le_bytes()); // Number of the disk on which this file starts
+
     // central file header signature
     buffer.extend_from_slice(&0x02014b50_u32.to_le_bytes());
     buffer.extend_from_slice(&self.version_made_by.to_le_bytes());
@@ -206,30 +182,8 @@ impl FileHeader {
     buffer.extend_from_slice(&self.compressed_size.to_le_bytes());
     buffer.extend_from_slice(&self.uncompressed_size.to_le_bytes());
     buffer.extend_from_slice(&self.file_name_length.to_le_bytes());
-
-    // Currently, this program will always use "Zip64 extended information extra field", its size is always 32 bytes.
-    let mut extra_field: [u8; 32] = [0; 32];
-
-    // Note: all fields stored in Intel low-byte/high-byte order.
-    //
-    //         Value                    Size       Description
-    //         -----                    ----       -----------
-    // (ZIP64) 0x0001                   2 bytes    Tag for this "extra" block type
-    //         Size                     2 bytes    Size of this "extra" block
-    //         Original Size            8 bytes    Original uncompressed file size
-    //         Compressed Size          8 bytes    Size of compressed data
-    //         Relative Header Offset   8 bytes    Offset of local header record
-    //         Disk Start Number        4 bytes    Number of the disk on which this file starts
-    extra_field[0..2].copy_from_slice(&0x0001_u16.to_le_bytes());
-    extra_field[2..4].copy_from_slice(&28_u16.to_le_bytes());
-    extra_field[4..12].copy_from_slice(&self.uncompressed_size_u64.to_le_bytes());
-    extra_field[12..20].copy_from_slice(&self.compressed_size_u64.to_le_bytes());
-    extra_field[20..28].copy_from_slice(&self.lfh_pos.to_le_bytes());
-    // Splitting is not support, so this is hard-coded to 0, currently.
-    extra_field[28..32].copy_from_slice(&0_u32.to_le_bytes());
-
-    buffer.extend_from_slice(&extra_field.len().to_le_bytes());
-    buffer.extend_from_slice(&self.file_comment_length.to_le_bytes());
+    buffer.extend_from_slice(&(EXTRA_FIELD_LENGTH as u16).to_le_bytes());
+    buffer.extend_from_slice(&0_u16.to_le_bytes()); // file comment length
     buffer.extend_from_slice(&self.disk_number_start.to_le_bytes());
     buffer.extend_from_slice(&self.internal_file_attributes.to_le_bytes());
     buffer.extend_from_slice(&self.external_file_attributes.to_le_bytes());

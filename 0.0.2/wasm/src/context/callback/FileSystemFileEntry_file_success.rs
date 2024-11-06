@@ -41,12 +41,18 @@ pub fn init(context: &Rc<Context>) {
       let mut deflate_encoder = DeflateEncoder::new(Vec::with_capacity(1024 * 1024), Compression::new(5)); // 1MiB inner buffer
 
       let mut read_buffer = js_sys::ArrayBuffer::new(BUFFER_DATA_SIZE);
+      let mut transform_buffer = vec![0_u8; BUFFER_DATA_SIZE as usize];
+
+      let mut total_in = 0_u64;
+      let mut total_out = 0_u64;
 
       loop {
         // js reader -> js buffer
         let ReadResult { new_buffer, view, done } = utils::byob_read(context, &read_buffer, &reader).await;
 
         let bytes_read = view.byte_length();
+
+        total_in += bytes_read as u64;
 
         web_sys::console::log_1(&JsValue::from_str(&format!(
           "读取数据 {:>8.2} KiB ，最后一次： {}",
@@ -79,6 +85,8 @@ pub fn init(context: &Rc<Context>) {
           // if indeed get some compressed bytes
           let bytes_output = deflate_encoder.get_ref().len();
 
+          total_out += bytes_output as u64;
+
           web_sys::console::log_1(&JsValue::from_str(&format!(
             "压缩数据 {:>8.2} KiB ，耗时 {:>8.2} S ，速度 {:>8.2} KiB/S",
             bytes_output as f64 / 1024_f64,
@@ -110,12 +118,16 @@ pub fn init(context: &Rc<Context>) {
         if done {
           // deflate encoder -> inner buffer
           deflate_encoder.get_mut().clear();
-          if let Err(e) = deflate_encoder.flush() {
-            alert::error(context, &format!("（最后一次）压缩失败，文件名： {} 。上游错误： {:?}", file_name, e));
-          }
+          let inner_buffer = match deflate_encoder.finish() {
+            Ok(w) => w,
+            Err(e) => alert::error(context, &format!("（最后一次）压缩失败，文件名： {} 。上游错误： {:?}", file_name, e)),
+          };
+
+          let bytes_output = inner_buffer.len();
+
+          total_out += bytes_output as u64;
 
           // if indeed we get some final extra compressed bytes to write
-          let bytes_output = deflate_encoder.get_ref().len();
           if bytes_output > 0 {
             // inner buffer -> js buffer
             let buffer_output = js_sys::ArrayBuffer::new(BUFFER_DATA_SIZE);
@@ -124,7 +136,7 @@ pub fn init(context: &Rc<Context>) {
               0,
               bytes_output as u32,
             );
-            view_output.copy_from(deflate_encoder.get_ref());
+            view_output.copy_from(&inner_buffer);
 
             // js buffer -> js writer
             if let Err(e) = utils::await_promise(
@@ -140,15 +152,13 @@ pub fn init(context: &Rc<Context>) {
         }
       }
 
-      web_sys::console::log_1(&JsValue::from_str(&format!("压缩数据已写入，大小 {} B", deflate_encoder.total_out())));
+      web_sys::console::log_1(&JsValue::from_str(&format!("压缩数据已写入，大小 {} B", total_out)));
 
       // ----------
       // data descriptor
       // ----------
 
       let crc32 = hasher.finalize();
-      let total_in = deflate_encoder.total_in();
-      let total_out = deflate_encoder.total_out();
 
       const DATA_DESCRIPTOR_SIZE: u32 = 4 + 4 + 8 + 8;
 
