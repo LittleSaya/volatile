@@ -1,8 +1,8 @@
 //! A `Context` is similar to a global variable, which will be initialized only once, captured by every closure, then forgot in memory.
 
-use std::{ cell::{OnceCell, RefCell}, rc::Rc };
+use std::{cell::{OnceCell, RefCell}, rc::Rc};
 
-use web_sys::{ js_sys, wasm_bindgen };
+use web_sys::{js_sys, wasm_bindgen};
 use wasm_bindgen::prelude::*;
 
 use crate::appnote63;
@@ -14,6 +14,7 @@ mod event_handler;
 
 pub struct Context {
   pub window                 : Rc<web_sys::Window>,
+  pub performance            : Rc<web_sys::Performance>,
   pub element                : Rc<ContextElement>,
   pub scan_stage             : Rc<ContextScanStage>,
   pub compress_encrypt_stage : Rc<ContextCompressEncryptStage>,
@@ -45,9 +46,8 @@ pub struct ContextCompressEncryptStage {
   pub number_compressed : Rc<RefCell<u64>>,
   pub file_headers      : Rc<RefCell<Vec<appnote63::FileHeader>>>,
   pub bytes_written     : Rc<RefCell<u64>>,
-  pub buffer_header     : Rc<RefCell<js_sys::ArrayBuffer>>,
-  pub buffer_data       : Rc<RefCell<js_sys::ArrayBuffer>>,
-  pub buffer_data_wasm  : Rc<RefCell<Vec<u8>>>,
+  pub buffer_header     : Rc<RefCell<Vec<u8>>>,
+  pub buffer_data       : Rc<RefCell<Vec<u8>>>,
 }
 
 #[allow(non_snake_case)]
@@ -65,6 +65,7 @@ pub struct ContextRustClosure {
   pub take_item         : Rc<OnceCell<Box<dyn Fn()>>>,
   pub get_file_entry    : Rc<OnceCell<Box<dyn Fn(String)>>>,
   pub process_directory : Rc<OnceCell<Box<dyn Fn(String)>>>,
+  pub finish            : Rc<OnceCell<Box<dyn Fn()>>>,
 }
 
 #[allow(non_snake_case)]

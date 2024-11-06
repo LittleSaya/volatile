@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{alert, appnote63, prelude::*, utils};
+use crate::{alert, appnote63, constant::BUFFER_HEADER_SIZE, prelude::*, utils};
 
 use super::super::Context;
 
@@ -21,11 +21,14 @@ pub fn init(context: &Rc<Context>) {
       let context = &context_clone_clone;
 
       // write "local file header"
-      // context_refmut.check_buffer(); TODO: figure out why
       let file_headers = context.compress_encrypt_stage.file_headers.borrow();
       let file_header = file_headers.last().unwrap_or_else(|| alert::error(context, &format!("在写入 Local File Header 时，发现 file_headers 为空，文件路径：{} 。", path)));
 
-      let lfh_view = file_header.write_into_as_lfh(&context.compress_encrypt_stage.buffer_header.borrow());
+      let lfh_buffer = js_sys::ArrayBuffer::new(BUFFER_HEADER_SIZE);
+      let lfh_view = file_header.write_into_as_lfh(
+        &mut context.compress_encrypt_stage.buffer_header.borrow_mut(),
+        &lfh_buffer,
+      );
 
       if let Err(e) = utils::await_promise(
         context.compress_encrypt_stage.writer
@@ -34,6 +37,8 @@ pub fn init(context: &Rc<Context>) {
       ).await {
         alert::error(context, &format!("Local File Header 写入失败，文件路径：{}。上游错误： {:?}", path, e));
       }
+
+      web_sys::console::log_1(&JsValue::from_str(&format!("文件 {} 的 Local File Header 已写入，大小： {} B", path, lfh_view.byte_length())));
 
       *context.compress_encrypt_stage.bytes_written.borrow_mut() += lfh_view.byte_length() as u64;
 

@@ -36,7 +36,8 @@ features = [
     "ReadableStream",
     "ReadableStreamGetReaderOptions",
     "ReadableStreamReaderMode",
-    "ReadableStreamByobReader"
+    "ReadableStreamByobReader",
+    "Performance"
 ]
 
 [dependencies]

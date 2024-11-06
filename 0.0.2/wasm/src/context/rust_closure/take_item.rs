@@ -1,27 +1,19 @@
 use std::rc::Rc;
 
-use crate::{alert, utils};
+use crate::alert;
 
 use super::super::{Context, FilePath};
 
-/// If the number of compressed files has reached the number of all files, close the writer.
+/// If the number of compressed files has reached the number of all files, call finish().
 ///
-/// Else, take a file and pass its path to different closures based on its type.
+/// Else, take a file and pass its path to different closures based on file type.
 pub fn init(context: &Rc<Context>) {
   let context_clone = Rc::clone(context);
   if let Err(_) = context.rust_closure.take_item.set(Box::new(move || {
     let context = &context_clone;
 
     if *context.compress_encrypt_stage.number_compressed.borrow() == context.scan_stage.file_path_list.borrow().len() as u64 {
-      let context_clone_clone = Rc::clone(&context_clone);
-      wasm_bindgen_futures::spawn_local(async move {
-        let context = &context_clone_clone;
-        if let Err(e) = utils::await_promise(context.compress_encrypt_stage.writer.borrow().as_ref().unwrap_or_else(|| alert::error(context, "在执行最终步骤时，发现 writer 尚未创建。")).close()).await {
-          alert::error(context, &format!("在执行最终步骤时，未能正确关闭输出流。上游错误：{:?}", e));
-        }
-        context.compress_encrypt_stage.writer.replace(None);
-      });
-
+      context.rust_closure.finish.get().unwrap_or_else(|| alert::error(context, "在 rust 闭包 take_item 中，发现 rust 闭包 finish 尚未初始化。"))();
       return;
     }
 

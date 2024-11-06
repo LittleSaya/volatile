@@ -1,6 +1,6 @@
 use std::{cell::{OnceCell, RefCell}, mem, rc::Rc};
 
-use crate::prelude::*;
+use crate::{constant::{BUFFER_DATA_SIZE, BUFFER_HEADER_SIZE}, prelude::*};
 
 use super::{callback, event_handler, rust_closure, Context, ContextCallback, ContextCompressEncryptStage, ContextElement, ContextEventHandler, ContextRustClosure, ContextScanStage};
 
@@ -16,6 +16,7 @@ impl Context {
     let context = Rc::new(
       Self {
         window: Rc::new(window.clone()),
+        performance: Rc::new(window.performance().unwrap()),
 
         element: Rc::new(ContextElement {
           dropping_area    : Rc::new( ensure_element::<web_sys::HtmlDivElement>(&window, &document, "dropping_area") ),
@@ -35,9 +36,8 @@ impl Context {
           number_compressed : Rc::new(RefCell::new(0)),
           file_headers      : Rc::new(RefCell::new(Vec::new())),
           bytes_written     : Rc::new(RefCell::new(0)),
-          buffer_header     : Rc::new(RefCell::new(js_sys::ArrayBuffer::new(64 * 1024))), // 64 KiB
-          buffer_data       : Rc::new(RefCell::new(js_sys::ArrayBuffer::new(1024 * 1024))), // 1 MiB
-          buffer_data_wasm  : Rc::new(RefCell::new(vec![0; 1024 * 1024])), // 1 MiB
+          buffer_header     : Rc::new(RefCell::new(Vec::with_capacity(BUFFER_HEADER_SIZE as usize))),
+          buffer_data       : Rc::new(RefCell::new(vec![0; BUFFER_DATA_SIZE as usize])),
         }),
 
         callback: Rc::new(ContextCallback {
@@ -54,6 +54,7 @@ impl Context {
           take_item         : Rc::new(OnceCell::new()),
           get_file_entry    : Rc::new(OnceCell::new()),
           process_directory : Rc::new(OnceCell::new()),
+          finish            : Rc::new(OnceCell::new()),
         }),
 
         event_handler: Rc::new(ContextEventHandler {
@@ -75,6 +76,7 @@ impl Context {
     rust_closure::take_item::init(&context);
     rust_closure::get_file_entry::init(&context);
     rust_closure::process_directory::init(&context);
+    rust_closure::finish::init(&context);
 
     event_handler::dropping_area__dragover::init(&context);
     event_handler::dropping_area__drop::init(&context);

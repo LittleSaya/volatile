@@ -32,8 +32,8 @@ pub fn init(context: &Rc<Context>) {
     // make sure "compress_encrypt" stage hasn't started yet
     // the sign of a started "compress_encrypt" stage is a created writer
     if context.compress_encrypt_stage.writer.borrow().is_some() {
-        alert::info(context, "输出流已存在，请等待当前输出流关闭。");
-        return;
+      alert::info(context, "输出流已存在，请等待当前输出流关闭。");
+      return;
     }
 
     context.compress_encrypt_stage.writer.replace(Some(create_stream_writer()));
