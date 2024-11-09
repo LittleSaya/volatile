@@ -3,8 +3,7 @@
 import init, * as wasm from './wasm_zip_stream.js';
 
 const streamSaver = window.streamSaver;
-streamSaver.mitm = 'http://127.0.0.1:8080/mitm.html';
-// streamSaver.mitm = 'https://volatile.saya.pw/mitm.html';
+streamSaver.mitm = 'https://volatile.saya.pw/mitm.html';
 
 /** @type {boolean} */
 let wasm_initialized = false;
