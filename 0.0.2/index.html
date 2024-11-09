@@ -1,0 +1,140 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+
+        <title>Volatile v0.0.2</title>
+
+        <script src="/ponyfill.min.js"></script>
+        <script src="/StreamSaver.min.js"></script>
+        <script type="module" src="./index-0.0.2.js"></script>
+
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                background-color: black;
+                color: white;
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+            }
+
+            #container {
+                width: 50%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+
+            #dropping_area {
+                border-width: 8px;
+                border-color: white;
+                border-radius: 8px;
+                border-style: dashed;
+                width: 100%;
+                height: 50%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                cursor: pointer;
+            }
+
+            #dropping_area > p {
+                font-size: 32px;
+                letter-spacing: 8px;
+            }
+
+            #status {
+                width: 100%;
+                margin-top: 16px;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: 1fr 1fr 1fr;
+            }
+
+            #status > div {
+                position: relative;
+                border: 1px solid white;
+                height: 48px;
+            }
+
+            #status > div > .label {
+                position: absolute;
+                left: 4px;
+                top: 4px;
+            }
+
+            #status > div > .content {
+                position: absolute;
+                right: 4px;
+                bottom: 4px;
+            }
+
+            button {
+                margin: 0 16px 0 0;
+                width: 160px;
+                height: 40px;
+                font-size: 16px;
+                letter-spacing: 2px;
+                cursor: pointer;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="container">
+            <div id="dropping_area">
+                <p>将文件或文件夹拖拽至此进行扫描</p>
+            </div>
+
+            <div id="status">
+                <div>
+                    <span class="label">扫描进度：</span>
+                    <span class="content" id="scan_progress">0</span>
+                </div>
+                <div>
+                    <span class="label">压缩进度：</span>
+                    <span class="content" id="compress_progress">0 %</span>
+                </div>
+                <div>
+                    <span class="label">当前输出速度：</span>
+                    <span class="content" id="current_speed">0 KiB/S</span>
+                </div>
+                <div>
+                    <span class="label">平均输出速度：</span>
+                    <span class="content" id="average_speed">0 KiB/S</span>
+                </div>
+                <div style="grid-column: 1 / 3;">
+                    <span class="label">当前文件：</span>
+                    <span class="content" id="current_file">?</span>
+                </div>
+            </div>
+
+            <div style="width: 100%; margin-top: 16px; display: flex; justify-content: start; align-items: center;">
+                <button id="compress_only" style="flex: 0 0 auto;">仅压缩</button>
+                <button id="compress_transform" style="flex: 0 0 auto;">压缩并转换</button>
+                <label for="compression_level" style="flex: 0 0 auto;">压缩等级：</label>
+                <input id="compression_level" type="number" min="0" max="9" value="5" style="width: 2em; height: 100%; font-size: 24px; margin-right: 16px; flex: 0 0 auto;" />
+                <label for="compressed_file_name" style="flex: 0 0 auto;">压缩包文件名：</label>
+                <input id="compressed_file_name" style="height: 100%; font-size: 20px; flex: 1 0 auto;" />
+            </div>
+
+            <div style="width: 100%; margin-top: 16px; display: flex;">
+                <div>
+                    <button id="transform_only">仅转换</button>
+                </div>
+                <div>
+                    <button id="recover">复原</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
